@@ -39,6 +39,12 @@
             "DEFAULT"
           ]
         }
+      ],
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
     },
     "plugins": [
@@ -52,10 +58,15 @@
           "imageWidth": 160,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
-      "apiUrl": "https://nvp-kmab.vercel.app"
-    }
+      "apiUrl": "https://nvp-kmab.vercel.app",
+      "eas": {
+        "projectId": "e5d928ee-14fb-46af-aba5-10cb8758ee14"
+      }
+    },
+    "owner": "kmab5s-team"
   }
 }
