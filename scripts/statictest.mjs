@@ -101,12 +101,53 @@ console.log(`  ${strict} parsed by node, ${heuristic} JSX files structurally che
 
 // --- 2. every relative import resolves ------------------------------------
 console.log('imports');
-const IMPORT = /(?:^|\n)\s*(?:import|export)[\s\S]*?from\s+['"]([^'"]+)['"]/g;
+/**
+ * Removes comments while leaving strings intact, so prose that happens to
+ * contain `from "..."` isn't mistaken for an import. Replaces comment bodies
+ * with spaces rather than deleting them, keeping offsets aligned for messages.
+ */
+function stripComments(source) {
+  let out = '';
+  let i = 0;
+  let inString = null;
+  while (i < source.length) {
+    const ch = source[i];
+    const next = source[i + 1];
+    if (inString) {
+      out += ch;
+      if (ch === '\\') { out += next ?? ''; i += 2; continue; }
+      if (ch === inString) inString = null;
+      i += 1;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { inString = ch; out += ch; i += 1; continue; }
+    if (ch === '/' && next === '/') {
+      while (i < source.length && source[i] !== '\n') { out += ' '; i += 1; }
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) {
+        out += source[i] === '\n' ? '\n' : ' ';
+        i += 1;
+      }
+      out += '  ';
+      i += 2;
+      continue;
+    }
+    out += ch;
+    i += 1;
+  }
+  return out;
+}
+
+// Bounded by the absence of a semicolon so a multi-line import still matches,
+// but the scan can't run past the statement into unrelated code.
+const IMPORT = /^[ \t]*(?:import|export)[^;]*?\bfrom\s+['"]([^'"]+)['"]/gm;
 const REQUIRE = /require\(\s*['"]([^'"]+)['"]\s*\)/g;
 let resolved = 0;
 
 for (const file of files) {
-  const source = readFileSync(file, 'utf8');
+  const source = stripComments(readFileSync(file, 'utf8'));
   const specifiers = [
     ...[...source.matchAll(IMPORT)].map((m) => m[1]),
     ...[...source.matchAll(REQUIRE)].map((m) => m[1]),
@@ -142,7 +183,7 @@ const declared = new Set([
 const packages = new Set();
 for (const file of files) {
   if (file.includes(`${'scripts'}/`)) continue;      // node-only tooling
-  const source = readFileSync(file, 'utf8');
+  const source = stripComments(readFileSync(file, 'utf8'));
   for (const match of source.matchAll(IMPORT)) {
     const spec = match[1];
     if (spec.startsWith('.') || spec.startsWith('node:')) continue;

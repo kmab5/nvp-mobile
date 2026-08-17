@@ -12,11 +12,12 @@
  */
 
 import { AppState } from 'react-native';
-import Constants from 'expo-constants';
+import { apiBase, apiProblem } from '../config.js';
 
-const CONFIGURED = Constants.expoConfig?.extra?.apiUrl;
-export const API_BASE = String(CONFIGURED || '').replace(/\/+$/, '');
-const ENDPOINT = `${API_BASE}/api/game`;
+// Resolved per call rather than captured once: the server can be repointed at
+// runtime from Server settings, and a value frozen at import time would ignore
+// that until the app restarted.
+const endpoint = () => `${apiBase()}/api/game`;
 
 /** Requests give up rather than hanging a turn indefinitely on a dead network. */
 const TIMEOUT_MS = 12000;
@@ -29,9 +30,8 @@ export class NetError extends Error {
 }
 
 async function request(url, options = {}) {
-  if (!API_BASE) {
-    throw new NetError('No server configured. Set extra.apiUrl in app.json.', 0);
-  }
+  const problem = apiProblem();
+  if (problem) throw new NetError(problem, 0);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -60,7 +60,7 @@ async function request(url, options = {}) {
   return body;
 }
 
-const post = (payload) => request(ENDPOINT, {
+const post = (payload) => request(endpoint(), {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(payload),
@@ -74,9 +74,15 @@ export const api = {
   rematch: (room, token, want = true) => post({ action: 'rematch', room, token, want }),
   leave: (room, token) => post({ action: 'leave', room, token }),
   state: (room, token) => request(
-    `${ENDPOINT}?room=${encodeURIComponent(room)}&token=${encodeURIComponent(token)}`,
+    `${endpoint()}?room=${encodeURIComponent(room)}&token=${encodeURIComponent(token)}`,
   ),
-  health: () => request(`${API_BASE}/api/health`).catch(() => null),
+
+  /**
+   * Reachability plus storage driver, used by the lobby to tell "the server is
+   * down" apart from "the server is up but online rooms won't hold". Returns
+   * null rather than throwing: a failed health check must never block play.
+   */
+  health: () => request(`${apiBase()}/api/health`).catch(() => null),
 };
 
 /**
@@ -140,5 +146,7 @@ export function createPoller({ room, token, onState, onError, interval = () => 1
 }
 
 export function shareLink(room) {
-  return `${API_BASE}/?room=${room}`;
+  return `${apiBase()}/?room=${room}`;
 }
+
+export { apiBase };

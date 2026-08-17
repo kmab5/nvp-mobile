@@ -9,25 +9,27 @@
     "sync": "node scripts/sync-core.mjs",
     "sounds": "python3 scripts/gen-sounds.py",
     "test": "node scripts/coretest.mjs && node scripts/statictest.mjs && node scripts/sync-core.mjs --check",
-    "doctor": "npx expo-doctor@latest"
+    "doctor": "npx expo-doctor@latest",
+    "test:api": "node scripts/apitest.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/space-grotesk": "^0.4.2",
     "@expo-google-fonts/space-mono": "^0.4.2",
-    "@react-native-community/netinfo": "12.0.1",
     "expo": "^57.0.0",
-    "expo-asset": "~57.0.11",
-    "expo-audio": "^57.0.0",
-    "expo-constants": "^57.0.0",
-    "expo-font": "^57.0.0",
-    "expo-haptics": "^57.0.0",
-    "expo-keep-awake": "^57.0.0",
-    "expo-linking": "^57.0.0",
-    "expo-splash-screen": "^57.0.0",
-    "expo-sqlite": "^57.0.0",
-    "expo-status-bar": "^57.0.0",
+    "expo-audio": "~2.0.0",
+    "expo-clipboard": "~8.0.0",
+    "expo-constants": "~19.0.0",
+    "expo-font": "~15.0.0",
+    "expo-haptics": "~16.0.0",
+    "expo-keep-awake": "~16.0.0",
+    "expo-linking": "~9.0.0",
+    "expo-network": "~8.0.0",
+    "expo-splash-screen": "~32.0.0",
+    "expo-sqlite": "~17.0.0",
+    "expo-status-bar": "~4.0.0",
     "react": "19.2.3",
-    "react-native": "0.86.2",
-    "react-native-safe-area-context": "~5.7.0"
+    "react-native": "0.86.0",
+    "react-native-safe-area-context": "~5.6.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2"

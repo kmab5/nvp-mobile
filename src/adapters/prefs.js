@@ -11,7 +11,19 @@
  * to src/prefs.js on web, with SQLite where localStorage was.
  */
 
-import Storage from 'expo-sqlite/kv-store';
+import { optional } from './native.js';
+
+/**
+ * expo-sqlite is a native module, so it can be absent in Expo Go or in a dev
+ * build made before it was added. Falling back to a plain Map keeps the whole
+ * app running — preferences simply don't survive a restart — instead of failing
+ * to boot over a settings store.
+ */
+const memory = new Map();
+const Storage = optional('expo-sqlite/kv-store', () => require('expo-sqlite/kv-store').default, {
+  getItemSync: (key) => memory.get(key) ?? null,
+  setItem: (key, value) => { memory.set(key, value); return Promise.resolve(); },
+});
 
 const KEY = 'nvp:v2';
 

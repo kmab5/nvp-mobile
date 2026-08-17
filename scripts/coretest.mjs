@@ -128,5 +128,45 @@ ok('cpu replied', cpuMatch.view().them.guesses.length === 1);
 ok('turn handed back', cpuMatch.view().yourTurn === true);
 cpuMatch.quit();
 
+// --- daily must match the web build exactly ------------------------------
+console.log('daily');
+const daily = await import('../core/daily.js');
+const { createDailyMatch } = await import('../core/match/daily.js');
+
+// Hard-coded from the web repo's own test run. If the two ever diverge — a
+// changed seed, a different hash, an accidental edit to the shuffle — this
+// fails, because a daily that differs by platform is worse than no daily.
+ok('puzzle numbering matches web', daily.puzzleNumber(new Date(2026, 0, 1)) === 1);
+ok(
+  'seeded code matches web',
+  daily.dailyCode(new Date(2026, 5, 15)) === '7648',
+  daily.dailyCode(new Date(2026, 5, 15)),
+);
+ok('code is stable within a day',
+  daily.dailyCode(new Date(2026, 5, 15, 2)) === daily.dailyCode(new Date(2026, 5, 15, 22)));
+ok('a new day brings a new code',
+  daily.dailyCode(new Date(2026, 5, 15)) !== daily.dailyCode(new Date(2026, 5, 16)));
+
+const noRepeat = new Set();
+for (let i = 0; i < 500; i += 1) {
+  noRepeat.add(daily.dailyCode(new Date(2026, 0, 1 + i)));
+}
+ok('no repeats across 500 days', noRepeat.size === 500);
+
+ok('pip row hides digits', daily.pipRow({ value: 2, position: 1 }) === '🟩🟨⬜⬜');
+
+const dailyMatch = createDailyMatch({ now: () => new Date(2026, 5, 15) });
+ok('daily starts playable', dailyMatch.view().phase === 'playing');
+ok('eight attempts', dailyMatch.view().remaining === daily.MAX_ATTEMPTS);
+dailyMatch.guess('1234');
+ok('guess recorded', dailyMatch.view().guesses.length === 1);
+ok('secret stays hidden while playing', dailyMatch.view().secret === null);
+ok('repeat guess refused', dailyMatch.guess('1234').ok === false);
+dailyMatch.guess('7648');
+ok('solving ends the day', dailyMatch.view().phase === 'over');
+ok('secret revealed at the end', dailyMatch.view().secret === '7648');
+ok('share text produced', /NVP Daily #\d+ — 2\/8/.test(dailyMatch.view().shareText));
+ok('share text leaks no digits', !/[1-9]/.test(dailyMatch.view().shareText.split('\n').slice(2, -1).join('')));
+
 console.log(`\n${checks} checks run`);
 console.log(process.exitCode ? 'FAILURES — see above' : 'ported core behaves identically to the web build');

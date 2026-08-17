@@ -4,11 +4,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, Switch, StyleSheet } from 'react-native';
+import {
+  View, Text, TextInput, ScrollView, Pressable, Switch, StyleSheet,
+  KeyboardAvoidingView, Platform,
+} from 'react-native';
 import { color, role, font, size, space, radius, type } from '../theme.js';
-import { Button, Panel, Eyebrow, Alert } from '../components/ui.js';
+import { Button, Panel, Eyebrow, Alert, Pill } from '../components/ui.js';
 import { LEVEL_ORDER, LEVELS } from '../../core/cpu.js';
 import { api, NetError } from '../adapters/net.js';
+import { apiBase, setApiOverride, configuredUrl, devFallbackUrl } from '../config.js';
 import * as prefs from '../adapters/prefs.js';
 
 function Field({ label, value, onChangeText, placeholder, ...rest }) {
@@ -154,6 +158,31 @@ export function OnlineLobbyScreen({ go, start, initialRoom = '' }) {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [resumable, setResumable] = useState(null);
+  // null = still checking, then an object describing what the server said.
+  const [health, setHealth] = useState(null);
+  const [showServer, setShowServer] = useState(false);
+  const [serverUrl, setServerUrl] = useState(apiBase());
+
+  // Ask the server what it is before offering to open a room. This separates
+  // "the server is unreachable" from "the server is up but online rooms won't
+  // survive" — two very different problems that look identical once a match has
+  // already started going wrong.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const base = apiBase();
+      if (!base) {
+        if (!cancelled) setHealth({ reachable: false, reason: 'no server configured' });
+        return;
+      }
+      const report = await api.health();
+      if (cancelled) return;
+      setHealth(report
+        ? { reachable: true, persistent: report.persistent !== false, driver: report.driver }
+        : { reachable: false, reason: 'no answer' });
+    })();
+    return () => { cancelled = true; };
+  }, [serverUrl]);
 
   // A match interrupted by a phone call or an app switch shouldn't be forfeit;
   // the seat token is kept locally and revalidated before it's offered back.
@@ -206,10 +235,78 @@ export function OnlineLobbyScreen({ go, start, initialRoom = '' }) {
   });
 
   return (
-    <ScrollView contentContainerStyle={styles.screen}>
-      <Eyebrow>Play online</Eyebrow>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+    <ScrollView contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
+      <View style={styles.lobbyHead}>
+        <Eyebrow>Play online</Eyebrow>
+        <Pressable onPress={() => setShowServer((v) => !v)}>
+          <Pill
+            tone={health === null ? 'neutral' : (health.reachable ? (health.persistent ? 'live' : 'warn') : 'warn')}
+            label={
+              health === null ? 'Checking…'
+                : health.reachable
+                  ? (health.persistent ? 'Server ready' : 'No storage')
+                  : 'Server unreachable'
+            }
+          />
+        </Pressable>
+      </View>
+
       <Text style={type.title}>Open a room or join one</Text>
       <Text style={type.muted}>Rooms hold two players and expire after six hours of quiet.</Text>
+
+      {health && !health.reachable && (
+        <Alert>
+          {`Can't reach the server (${health.reason}). Online play needs it — pass-and-play and the CPU still work. Tap the badge above to check the address.`}
+        </Alert>
+      )}
+      {health?.reachable && !health.persistent && (
+        <Alert>
+          The server is up but has no persistent storage, so rooms may vanish for the
+          second player. Connect Redis on the server and redeploy.
+        </Alert>
+      )}
+
+      {showServer && (
+        <Panel style={{ gap: space.sm }}>
+          <Eyebrow>Server</Eyebrow>
+          <Text style={type.muted}>
+            {configuredUrl()
+              ? `Built with ${configuredUrl()}`
+              : 'No address baked in (set extra.apiUrl in app.json).'}
+          </Text>
+          {__DEV__ && devFallbackUrl() ? (
+            <Text style={styles.note}>{`Dev fallback: ${devFallbackUrl()}`}</Text>
+          ) : null}
+          <TextInput
+            value={serverUrl}
+            onChangeText={setServerUrl}
+            placeholder="https://your-app.vercel.app"
+            placeholderTextColor={color.faint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            style={styles.input}
+          />
+          <View style={{ flexDirection: 'row', gap: space.sm }}>
+            <Button
+              label="Reset"
+              variant="ghost"
+              style={{ flex: 1 }}
+              onPress={() => { setApiOverride(''); setServerUrl(apiBase()); setHealth(null); }}
+            />
+            <Button
+              label="Use this server"
+              variant="primary"
+              style={{ flex: 1 }}
+              onPress={() => { setApiOverride(serverUrl); setHealth(null); setServerUrl(apiBase()); }}
+            />
+          </View>
+        </Panel>
+      )}
 
       {resumable && (
         <Panel style={{ gap: space.sm }}>
@@ -261,6 +358,7 @@ export function OnlineLobbyScreen({ go, start, initialRoom = '' }) {
 
       <Button label="Back to the menu" variant="quiet" onPress={() => go('menu')} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -285,6 +383,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   joinRow: { flexDirection: 'row', gap: space.sm, alignItems: 'stretch' },
+  lobbyHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   note: { ...type.muted, fontSize: size.small },
   actions: { flexDirection: 'row', gap: space.sm, marginTop: space.sm },

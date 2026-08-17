@@ -10,9 +10,23 @@
  *    API, so the cues can have distinct textures instead of just durations.
  */
 
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
-import * as Haptics from 'expo-haptics';
+import { optional } from './native.js';
 import * as prefs from './prefs.js';
+
+// Sound and haptics are both entirely optional — a missing module costs some
+// polish, never the game.
+const Audio = optional('expo-audio', () => require('expo-audio'), {
+  createAudioPlayer: () => null,
+  setAudioModeAsync: async () => {},
+});
+const Haptics = optional('expo-haptics', () => require('expo-haptics'), {
+  impactAsync: async () => {},
+  notificationAsync: async () => {},
+  selectionAsync: async () => {},
+  ImpactFeedbackStyle: { Light: 0, Medium: 1 },
+  NotificationFeedbackType: { Success: 0, Warning: 1, Error: 2 },
+});
+const { createAudioPlayer, setAudioModeAsync } = Audio;
 
 // require() rather than import: Metro needs static asset references to bundle.
 const SOURCES = {

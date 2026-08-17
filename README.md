@@ -7,6 +7,31 @@ All three modes work: pass-and-play, online rooms against the same server the we
 build uses, and the CPU at three difficulties. The CPU runs entirely on-device,
 so it needs no connection.
 
+## If the app doesn't load
+
+The first version had a startup bug: it held the splash screen until fonts
+loaded and rendered nothing until then, so any font failure left it stuck
+forever with nothing to debug. That's fixed — fonts are now best-effort, the
+splash hides from a `finally`, and every native module is loaded through
+`src/adapters/native.js` so a missing one degrades instead of killing the
+bundle. Anything that still throws lands on a readable error screen listing
+which modules failed.
+
+If it still won't start, in order:
+
+1. **Rebuild the dev client.** By far the most common cause: the JS references a
+   native module the installed build doesn't contain. Adding any `expo-*`
+   package requires a new build, not just a Metro restart.
+   ```bash
+   npx expo run:android
+   ```
+2. **Check Expo Go.** Expo Go only runs the SDK it was built for. If it's not an
+   SDK 57 build, use a dev build instead — which you want anyway.
+3. **Read the Metro output.** `npx expo start --clear` and watch the terminal as
+   the app launches; a bundling error appears there and nowhere else.
+4. **Check the menu for an amber warning.** If some modules failed but the app
+   still ran, it says which ones.
+
 ## Before you can run it
 
 ```bash
@@ -20,14 +45,43 @@ npx expo run:android       # device or emulator, needs Android Studio
 `package.json` were written by hand and `expo install` is the only thing that
 knows the exact set SDK 57 expects. Run it before your first build.
 
-Point the app at your deployment in `app.json`:
-
-```json
-"extra": { "apiUrl": "https://your-app.vercel.app" }
-```
+## The backend
 
 Online play talks to the same `/api/game` endpoint as the website, so the two
-share rooms — you can play the Android app against someone on the web.
+share rooms — the Android app can play against someone in a browser.
+
+**What it needs, in full:**
+
+1. **An address.** `extra.apiUrl` in `app.json`:
+   ```json
+   "extra": { "apiUrl": "https://your-app.vercel.app" }
+   ```
+2. **Redis on the server**, or online rooms will appear to vanish for the second
+   player. The app now checks this for you (see below).
+3. **Nothing else.** There's no CORS to configure — native `fetch` isn't subject
+   to it — no auth, and no separate mobile backend.
+
+**Development against a local server** is handled automatically. `localhost` on
+a phone means the phone, not your laptop, so `src/config.js` reads the host
+Metro served the bundle from and reuses it: `10.0.2.2` on the emulator, your LAN
+address on a real device, port 3000. `usesCleartextTraffic` is enabled so
+Android 9+ permits plain http to it.
+
+**The lobby tells you the server's state** before you open a room, via
+`/api/health`. The badge reads *Server ready*, *No storage* (up, but rooms won't
+survive), or *Server unreachable* — and tapping it opens a field to repoint the
+app at a different server at runtime, no rebuild needed. That override persists
+and takes priority over `app.json`.
+
+Verify the whole thing without a device:
+
+```bash
+cd ../nvp && npm start          # in another shell
+npm run test:api                # plays a full match through the real API
+```
+
+That runs 17 checks: health, a complete two-player match, secret leakage, the
+rematch handshake, and seat cleanup on leave.
 
 ### Shipping to Play
 
@@ -98,13 +152,34 @@ Invite links work both ways: `nvp://room/ABC12` and
 in. The `https` form needs Digital Asset Links set up on the domain to open the
 app directly rather than the browser.
 
+## Android features
+
+- **Native share of results** — the pip grid as emoji (🟩🟨⬜), reproducing the
+  board without revealing a digit, so it's safe to post mid-match.
+- **Clipboard** — tap the room code in the HUD to copy it, with a toast.
+- **Back button** — confirms before abandoning a live match (leaving an online
+  room forfeits the seat), and double-press to exit from the menu.
+- **Deep links** — `nvp://room/ABC12` and `https://<host>/?room=ABC12` both open
+  the join screen with the code filled in.
+- **Haptics** — `expo-haptics` cues matched to the sounds, independently
+  toggleable, so a muted player still feels a cracked code.
+- **Keep awake** during a match, so the screen doesn't dim mid-deduction.
+- **Themed icon** for Android 13+, and an adaptive icon.
+- **Offline awareness** — online mode is greyed out with a reason when there's
+  no connection; the CPU and pass-and-play work fully offline.
+
+No notifications, by design. The app never asks for notification permission and
+ships no notification code — the only thing that buzzes is haptic feedback on
+your own taps.
+
 ## Testing
 
 ```bash
-npm test
+npm test          # no device needed
+npm run test:api  # against a running server
 ```
 
-Three suites, none of which need a device:
+Four suites, none of which need a device:
 
 - **`scripts/coretest.mjs`** runs the ported core under plain Node with the
   native modules stubbed — the engine, CPU strength across 180 games, and all
@@ -115,6 +190,8 @@ Three suites, none of which need a device:
   relative import and package reference, catching the errors that would
   otherwise only appear on first launch.
 - **`sync-core.mjs --check`** fails if `core/` has drifted from the web repo.
+- **`scripts/apitest.mjs`** plays a complete online match against a real server
+  through the same protocol the app uses.
 
 ### What is *not* verified
 

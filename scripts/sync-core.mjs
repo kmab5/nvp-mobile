@@ -24,11 +24,13 @@ const WEB = process.env.NVP_WEB || join(HERE, '..', 'nvp');
 // source (in the web repo) -> destination (here)
 const FILES = [
   ['shared/engine.js', 'core/engine.js'],
+  ['shared/daily.js', 'core/daily.js'],
   ['src/cpu.js', 'core/cpu.js'],
   ['src/match/shared.js', 'core/match/shared.js'],
   ['src/match/local.js', 'core/match/local.js'],
   ['src/match/cpu.js', 'core/match/cpu.js'],
   ['src/match/online.js', 'core/match/online.js'],
+  ['src/match/daily.js', 'core/match/daily.js'],
 ];
 
 /**
@@ -38,6 +40,8 @@ const FILES = [
  * logic itself is untouched, which is what keeps the two in step.
  */
 const REWRITES = [
+  [/from '\.\.\/\.\.\/shared\/daily\.js'/g, "from '../daily.js'"],
+  [/from '\.\/daily\.js'/g, "from './daily.js'"],
   [/from '\.\.\/\.\.\/shared\/engine\.js'/g, "from '../engine.js'"],
   [/from '\.\.\/shared\/engine\.js'/g, "from './engine.js'"],
   [/from '\.\.\/prefs\.js'/g, "from '../../src/adapters/prefs.js'"],

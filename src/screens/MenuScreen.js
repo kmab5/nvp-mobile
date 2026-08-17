@@ -12,6 +12,8 @@ import { Button, Panel, Eyebrow, Mark } from '../components/ui.js';
 import { LedgerRow } from '../components/Ledger.js';
 import * as prefs from '../adapters/prefs.js';
 import * as sfx from '../adapters/sfx.js';
+import { nativeWarnings } from '../adapters/native.js';
+import { puzzleNumber, dayKey, streakFrom, MAX_ATTEMPTS } from '../../core/daily.js';
 
 const MODES = [
   {
@@ -66,6 +68,8 @@ export function MenuScreen({ go, online }) {
         You each hide a code. You take turns guessing. Every guess comes back scored on
         those two numbers and nothing else — first to read the other&apos;s code wins.
       </Text>
+
+      <DailyCard go={go} />
 
       <View style={{ gap: space.md }}>
         {MODES.map((mode) => {
@@ -141,11 +145,50 @@ export function MenuScreen({ go, online }) {
         </Pressable>
       </View>
 
+      {nativeWarnings().length > 0 && (
+        <View style={styles.warnBlock}>
+          <Text style={styles.warnTitle}>Running with reduced features</Text>
+          {nativeWarnings().map((warning, i) => (
+            <Text key={i} style={styles.warnText}>• {warning}</Text>
+          ))}
+          <Text style={styles.warnText}>
+            Rebuild with npx expo run:android to restore them.
+          </Text>
+        </View>
+      )}
+
       <View style={styles.credit}>
         <Mark size={18} />
         <Text style={styles.creditText}>NVP — a game by Sami</Text>
       </View>
     </ScrollView>
+  );
+}
+
+function DailyCard({ go }) {
+  const history = prefs.get('daily.history', {}) || {};
+  const today = history[dayKey()];
+  const streak = streakFrom(history);
+  const done = Boolean(today?.finished);
+
+  return (
+    <Pressable
+      onPress={() => { sfx.play('tap'); go('daily'); }}
+      style={({ pressed }) => [styles.dailyCard, pressed && { borderColor: role.accent }]}
+    >
+      <View style={{ flex: 1, gap: 2 }}>
+        <Eyebrow>Daily · puzzle #{puzzleNumber()}</Eyebrow>
+        <Text style={styles.dailyTitle}>{done ? 'Today: done' : "Play today's code"}</Text>
+        <Text style={styles.dailySub}>
+          {done
+            ? (today.solved
+              ? `Solved in ${today.attempts}. Come back tomorrow.`
+              : 'Not solved today. Try again tomorrow.')
+            : `One code, everyone, ${MAX_ATTEMPTS} attempts.`}
+        </Text>
+      </View>
+      {streak > 0 && <Text style={styles.dailyStreak}>🔥 {streak}</Text>}
+    </Pressable>
   );
 }
 
@@ -267,6 +310,30 @@ const styles = StyleSheet.create({
     paddingTop: space.lg,
   },
   creditText: { fontFamily: font.display, fontSize: size.small, color: color.faint },
+  dailyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    padding: space.md,
+    backgroundColor: color.purple900,
+    borderWidth: 1,
+    borderColor: color.purple700,
+    borderRadius: radius.lg,
+  },
+  dailyTitle: { fontFamily: font.displayBold, fontSize: size.xl, color: color.text, letterSpacing: -0.5 },
+  dailySub: { fontFamily: font.display, fontSize: size.small, color: color.muted },
+  dailyStreak: { fontFamily: font.mono, fontSize: size.large, color: color.amber300 },
+  warnBlock: {
+    backgroundColor: color.amber900,
+    borderWidth: 1,
+    borderColor: color.amber700,
+    borderRadius: radius.md,
+    padding: space.md,
+    gap: 4,
+    marginTop: space.md,
+  },
+  warnTitle: { fontFamily: font.displayBold, fontSize: size.small, color: color.amber300 },
+  warnText: { fontFamily: font.display, fontSize: size.small, color: color.amber300 },
   rule: { flexDirection: 'row', gap: space.sm },
   ruleMark: { fontFamily: font.mono, color: role.accent, width: 14 },
   ruleText: { ...type.muted, flex: 1 },

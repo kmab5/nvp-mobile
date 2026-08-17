@@ -13,19 +13,28 @@
 import React, { useEffect, useReducer, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, Modal, Pressable, Share, StyleSheet,
+  ToastAndroid, Platform,
 } from 'react-native';
-import { useKeepAwake } from 'expo-keep-awake';
 import { color, role, font, size, space, radius, type } from '../theme.js';
 import { Button, Panel, Eyebrow, Pill, Alert } from '../components/ui.js';
 import { Ledger, Notes } from '../components/Ledger.js';
 import { CodePad } from '../components/CodePad.js';
 import { shareLink } from '../adapters/net.js';
+import { optional } from '../adapters/native.js';
+import { resultShareText } from '../share.js';
 import * as sfx from '../adapters/sfx.js';
+
+const KeepAwake = optional('expo-keep-awake', () => require('expo-keep-awake'), null);
+const Clipboard = optional('expo-clipboard', () => require('expo-clipboard'), null);
 
 export function PlayScreen({ match, onLeave }) {
   // Thinking about a guess means long stretches of not touching the screen; a
   // phone dimming mid-deduction is exactly the wrong moment.
-  useKeepAwake();
+  useEffect(() => {
+    if (!KeepAwake?.activateKeepAwakeAsync) return undefined;
+    KeepAwake.activateKeepAwakeAsync('nvp-match').catch(() => {});
+    return () => { KeepAwake.deactivateKeepAwake?.('nvp-match'); };
+  }, []);
 
   const [, force] = useReducer((n) => n + 1, 0);
   const [error, setError] = useState(null);
@@ -70,6 +79,36 @@ export function PlayScreen({ match, onLeave }) {
     setPadKey((k) => k + 1);
   }
 
+  async function copyRoom() {
+    if (!view.room) return;
+    sfx.play('tap');
+    if (Clipboard?.setStringAsync) {
+      await Clipboard.setStringAsync(view.room);
+      if (Platform.OS === 'android') ToastAndroid.show('Room code copied', ToastAndroid.SHORT);
+    } else {
+      Share.share({ message: view.room });
+    }
+  }
+
+  /**
+   * Shares the result as a pip grid. It reproduces the board exactly without
+   * revealing a single digit, so it's safe to post even mid-match — and it's
+   * the same shape the web build will use for daily challenges.
+   */
+  function shareResult() {
+    const mine = view.boards?.find((b) => b.key === 'me' || b.key === view.seat);
+    sfx.play('tap');
+    Share.share({
+      message: resultShareText({
+        mode: view.mode,
+        result: view.result,
+        guesses: mine?.guesses || view.me.guesses || [],
+        opponent: view.them?.name,
+        link: view.mode === 'online' && view.room ? shareLink(view.room) : undefined,
+      }),
+    }).catch(() => {});
+  }
+
   function startRematch() {
     setError(null);
     setResultHidden(false);
@@ -88,6 +127,9 @@ export function PlayScreen({ match, onLeave }) {
       placement === 'overlay'
         ? <Button key="board" label="View final board" variant="ghost" onPress={() => setResultHidden(true)} style={styles.grow} />
         : <Button key="result" label="Show result" variant="ghost" onPress={() => setResultHidden(false)} style={styles.grow} />,
+    );
+    buttons.push(
+      <Button key="share" label="Share result" variant="ghost" onPress={shareResult} style={styles.grow} />,
     );
     buttons.push(
       <Button key="menu" label="Main menu" variant="ghost" onPress={onLeave} style={styles.grow} />,
@@ -152,14 +194,17 @@ export function PlayScreen({ match, onLeave }) {
           <Text style={type.muted}>
             Send the code or the link. The match starts as soon as they join.
           </Text>
-          <Button
-            label="Share invite"
-            variant="primary"
-            style={{ width: '100%' }}
-            onPress={() => Share.share({
-              message: `Crack my code on NVP: ${shareLink(view.room)} (room ${view.room})`,
-            })}
-          />
+          <View style={{ flexDirection: 'row', gap: space.sm, width: '100%' }}>
+            <Button label="Copy code" variant="ghost" style={{ flex: 1 }} onPress={copyRoom} />
+            <Button
+              label="Share invite"
+              variant="primary"
+              style={{ flex: 1 }}
+              onPress={() => Share.share({
+                message: `Crack my code on NVP: ${shareLink(view.room)} (room ${view.room})`,
+              })}
+            />
+          </View>
           <Text style={styles.waiting}>Waiting for a second player…</Text>
         </View>
       );
@@ -254,7 +299,9 @@ export function PlayScreen({ match, onLeave }) {
           )}
           <View style={{ flex: 1 }} />
           {view.connection === 'stalled' && <Pill tone="warn" label="Reconnecting" />}
-          {view.mode === 'online' && view.room && <Pill label={view.room} />}
+          {view.mode === 'online' && view.room && (
+            <Pill label={view.room} onPress={copyRoom} />
+          )}
           <Button label="Leave" variant="quiet" onPress={onLeave} />
         </View>
 
