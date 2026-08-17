@@ -54,7 +54,7 @@ share rooms — the Android app can play against someone in a browser.
 
 1. **An address.** `extra.apiUrl` in `app.json`:
    ```json
-   "extra": { "apiUrl": "https://your-app.vercel.app" }
+   "extra": { "apiUrl": "https://nvp-kmab.vercel.app" }
    ```
 2. **Redis on the server**, or online rooms will appear to vanish for the second
    player. The app now checks this for you (see below).

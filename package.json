@@ -20,6 +20,7 @@
     "expo-audio": "^57.0.0",
     "expo-clipboard": "^57.0.0",
     "expo-constants": "~57.0.12",
+    "expo-dev-client": "~57.0.13",
     "expo-font": "^57.0.0",
     "expo-haptics": "^57.0.0",
     "expo-keep-awake": "^57.0.0",
