@@ -36,14 +36,35 @@ If it still won't start, in order:
 
 ```bash
 npm install
-npx expo install --fix     # authoritative: pins every package to SDK 57's version
-npm run doctor             # expo-doctor, catches config problems
+npm run doctor             # expo-doctor
 npx expo run:android       # device or emulator, needs Android Studio
 ```
 
-`npx expo install --fix` matters more than usual here: the versions in
-`package.json` were written by hand and `expo install` is the only thing that
-knows the exact set SDK 57 expects. Run it before your first build.
+Dependency versions are taken from `expo@57.0.14`'s own
+`bundledNativeModules.json`, and every range has been checked to resolve on npm
+and to bundle. `npx expo install --fix` is still worth running after adding any
+package.
+
+## Build sizes
+
+A **development build is ~180MB, and that's normal.** It contains the dev client,
+the debugger bridge, an uncompiled JS bundle, Hermes with debug symbols, and
+native code for every ABI. None of that ships to players.
+
+What users actually download:
+
+| Build | Command | Size |
+|---|---|---|
+| Development client | `npx expo run:android` | ~180MB |
+| Release APK | `npm run android:release` | ~25–40MB |
+| Play Store (AAB) | `npm run build:production` | ~15–25MB delivered |
+
+The AAB is smallest because Play splits it per device — a phone downloads one
+ABI and one screen density, not all of them. Use `npm run build:preview` for a
+shareable release-mode APK to hand someone directly.
+
+The JS bundle itself is 1.8MB and the assets ~370KB (four font weights and seven
+sound cues).
 
 ## The backend
 
@@ -151,6 +172,35 @@ Invite links work both ways: `nvp://room/ABC12` and
 `https://<your-host>/?room=ABC12` both open the join screen with the code filled
 in. The `https` form needs Digital Asset Links set up on the domain to open the
 app directly rather than the browser.
+
+## Assets
+
+All generated from one definition of the mark by `npm run icons`
+(`scripts/gen-icons.py`). They can't just be one file resized — each has
+different rules:
+
+| File | Size | Rules |
+|---|---|---|
+| `icon.png` | 1024 | Full bleed, no transparency. Stores and launchers apply their own mask. |
+| `adaptive-icon.png` | 1024 | Transparent, artwork inside the centre 66%. Android crops to circle/squircle/teardrop depending on launcher. |
+| `monochrome-icon.png` | 1024 | White on transparent. Android 13+ tints this to the user's wallpaper. |
+| `splash.png` | 1024 | Transparent, shown at 160px over the brand colour. |
+| `favicon.png` | 48 | Web exports. |
+
+Sound cues are generated too — `npm run sounds` renders the web build's WebAudio
+oscillators to WAV, since React Native has no WebAudio.
+
+## First-launch intro
+
+New players get a four-step intro, because NVP is hard to explain and easy to
+demonstrate. The first three steps cover the rules, the two scores and how to
+read the board; the fourth is the one that matters — a **real guess against a
+visible code, scored by the real engine**. Nothing is mocked, and every example
+number in it is asserted against the engine in the test suite, so onboarding
+can't drift into teaching the game wrong.
+
+It's skippable from any step, stores `onboarded` in preferences, and is
+replayable from the menu.
 
 ## Android features
 

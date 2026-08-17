@@ -5,6 +5,85 @@ they share a game core, so a change to it lands in both.
 
 ---
 
+## 2026-08-17 — Expo assets, first-launch intro
+
+**Added — generated assets**
+
+- `scripts/gen-icons.py` produces every image Expo needs from one definition of
+  the mark: full-bleed `icon.png`, a transparent `adaptive-icon.png` confined to
+  Android's centre-66% safe zone, a `monochrome-icon.png` for Android 13+ themed
+  icons, `splash.png`, and a web `favicon.png`.
+- Replaced the placeholders, which were wrong: the icon was a 512px web file
+  reused, and the splash was an *iOS launch screenshot* rather than a logo image,
+  so `expo-splash-screen` would have scaled a full phone-sized picture down to
+  160px.
+
+**Added — first-launch intro**
+
+- Four-step onboarding, shown once and replayable from the menu. The final step
+  is a real guess against a visible code, scored by the real engine — the game
+  clicks the moment you see "Value 2, Position 1" against a code you can read.
+- Every example number in the intro is asserted against the engine in
+  `coretest.mjs` (now 41 checks), so onboarding can't drift into teaching the
+  scoring backwards.
+
+**Verified**
+
+- `npx expo export` bundles 700 modules clean; `expo config` resolves with the
+  new icon, adaptive icon, monochrome icon, splash and favicon all wired.
+
+---
+
+## 2026-08-16 — Android: build fixed, verified by actually bundling
+
+Every dependency version in the first Android draft was written from memory, and
+most of them were wrong. This round installed the packages and ran Metro for
+real, so the build is now verified rather than assumed.
+
+**Fixed — the build**
+
+- **`babel-preset-expo` was never declared.** `babel.config.js` referenced it
+  while `package.json` listed only `@babel/core`. This was the root cause of
+  *both* reported errors: Metro builds its transformer from the babel config
+  before bundling anything, so the missing preset surfaced as the opaque
+  `Cannot read properties of undefined (reading 'transformFile')`.
+- **Every dependency version was wrong.** SDK 57 unified the `expo-*` packages
+  onto 57.x versioning; the first draft used older `~2.x`/`~8.x` numbers that
+  don't exist. `@expo-google-fonts/space-grotesk` was pinned to `^0.4.2` when
+  0.4.1 is the latest published. Versions now come from `expo@57.0.14`'s own
+  `bundledNativeModules.json`, and all 20 were checked to resolve on npm.
+- **`expo-asset` was missing** — a required peer of `expo-audio`, which
+  expo-doctor warns "may crash outside of Expo Go". That is exactly how this app
+  ships.
+
+**Fixed — app config schema**
+
+- Removed the top-level `splash` key; SDK 57 takes splash config through the
+  `expo-splash-screen` plugin.
+- `android.usesCleartextTraffic` isn't a valid schema field. Moved to the
+  `expo-build-properties` plugin, which is the supported route.
+- Trimmed the `expo-font` and `expo-audio` plugin entries — neither is needed
+  when fonts load at runtime and no microphone permission is required.
+
+**Changed**
+
+- Fonts import per-weight entry points instead of the package root, which was
+  bundling all nine weights of both families. Nine font files (845KB) down to
+  four (369KB).
+- Added `metro.config.js` (Expo's default, stated explicitly) and `eas.json`
+  with development / preview / production profiles.
+- Removed the unused `expo-status-bar` dependency.
+
+**Verified**
+
+- `npm install` completes, `npx expo export --platform android` bundles 699
+  modules with no errors, `expo config` resolves, and expo-doctor passes every
+  check that doesn't require network access.
+- Documented why a dev build is ~180MB (dev client, debug symbols, all ABIs) and
+  what ships instead: ~25–40MB release APK, ~15–25MB delivered from Play.
+
+---
+
 ## 2026-08-16 — NVP Daily
 
 **Added — one puzzle a day, everywhere**

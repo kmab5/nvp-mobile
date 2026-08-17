@@ -168,5 +168,25 @@ ok('secret revealed at the end', dailyMatch.view().secret === '7648');
 ok('share text produced', /NVP Daily #\d+ — 2\/8/.test(dailyMatch.view().shareText));
 ok('share text leaks no digits', !/[1-9]/.test(dailyMatch.view().shareText.split('\n').slice(2, -1).join('')));
 
+// --- the intro must teach the real scoring -------------------------------
+// Every number shown during onboarding is checked against the engine. A wrong
+// example here would teach the game backwards to every new player, and it is
+// exactly the kind of hand-written constant that rots silently.
+console.log('intro');
+const INTRO_SECRET = '4719';
+const INTRO_EXAMPLES = [
+  ['1732', 2, 1],
+  ['4712', 3, 3],
+  ['4719', 4, 4],
+];
+for (const [guess, value, position] of INTRO_EXAMPLES) {
+  const score = evaluate(INTRO_SECRET, guess);
+  ok(
+    `intro example ${guess} scores V${value} P${position}`,
+    score.value === value && score.position === position,
+    `actual V${score.value} P${score.position}`,
+  );
+}
+
 console.log(`\n${checks} checks run`);
 console.log(process.exitCode ? 'FAILURES — see above' : 'ported core behaves identically to the web build');

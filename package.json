@@ -10,31 +10,36 @@
     "sounds": "python3 scripts/gen-sounds.py",
     "test": "node scripts/coretest.mjs && node scripts/statictest.mjs && node scripts/sync-core.mjs --check",
     "doctor": "npx expo-doctor@latest",
-    "test:api": "node scripts/apitest.mjs"
+    "test:api": "node scripts/apitest.mjs",
+    "android:release": "expo run:android --variant release",
+    "build:preview": "eas build --platform android --profile preview",
+    "build:production": "eas build --platform android --profile production",
+    "export": "expo export --platform android",
+    "icons": "python3 scripts/gen-icons.py"
   },
   "dependencies": {
     "@expo-google-fonts/space-grotesk": "^0.4.1",
     "@expo-google-fonts/space-mono": "^0.4.2",
     "expo": "~57.0.14",
     "expo-asset": "~57.0.12",
-    "expo-audio": "^57.0.0",
-    "expo-clipboard": "^57.0.0",
+    "expo-audio": "~57.0.3",
+    "expo-build-properties": "~57.0.12",
+    "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.12",
     "expo-dev-client": "~57.0.13",
-    "expo-font": "^57.0.0",
-    "expo-haptics": "^57.0.0",
-    "expo-keep-awake": "^57.0.0",
-    "expo-linking": "^57.0.0",
-    "expo-network": "^57.0.0",
+    "expo-font": "~57.0.1",
+    "expo-haptics": "~57.0.1",
+    "expo-keep-awake": "~57.0.1",
+    "expo-linking": "~57.0.6",
+    "expo-network": "~57.0.1",
     "expo-splash-screen": "~57.0.7",
-    "expo-sqlite": "^57.0.0",
-    "expo-status-bar": "^57.0.0",
-    "expo-system-ui": "^57.0.2",
+    "expo-sqlite": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.2",
     "react-native-safe-area-context": "~5.7.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2"
+    "@babel/core": "^7.25.2",
+    "babel-preset-expo": "~57.0.7"
   }
 }

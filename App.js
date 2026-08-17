@@ -28,10 +28,12 @@ import { MenuScreen, RulesScreen } from './src/screens/MenuScreen.js';
 import { LocalSetupScreen, CpuSetupScreen, OnlineLobbyScreen } from './src/screens/SetupScreens.js';
 import { PlayScreen } from './src/screens/PlayScreen.js';
 import { DailyScreen } from './src/screens/DailyScreen.js';
+import { IntroScreen } from './src/screens/IntroScreen.js';
 import { createLocalMatch } from './core/match/local.js';
 import { createCpuMatch } from './core/match/cpu.js';
 import { createOnlineMatch } from './core/match/online.js';
 import * as sfx from './src/adapters/sfx.js';
+import * as prefs from './src/adapters/prefs.js';
 
 const SplashScreen = optional('expo-splash-screen', () => require('expo-splash-screen'), {
   preventAutoHideAsync: async () => {},
@@ -46,29 +48,29 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 // Loaded lazily so a missing font package cannot take the bundle down at import.
 async function loadFonts() {
   if (!Font?.loadAsync) return false;
-  const grotesk = optional(
-    '@expo-google-fonts/space-grotesk',
-    () => require('@expo-google-fonts/space-grotesk'),
-    null,
-  );
-  const mono = optional(
-    '@expo-google-fonts/space-mono',
-    () => require('@expo-google-fonts/space-mono'),
-    null,
-  );
-  if (!grotesk || !mono) return false;
-  await Font.loadAsync({
-    SpaceGrotesk_500Medium: grotesk.SpaceGrotesk_500Medium,
-    SpaceGrotesk_700Bold: grotesk.SpaceGrotesk_700Bold,
-    SpaceMono_400Regular: mono.SpaceMono_400Regular,
-    SpaceMono_700Bold: mono.SpaceMono_700Bold,
-  });
+  // Per-weight entry points, not the package root. Requiring the root pulls
+  // every weight the family ships — nine files, ~845KB — when the app uses
+  // four. This bundles only what's actually rendered.
+  const faces = optional('@expo-google-fonts', () => ({
+    SpaceGrotesk_500Medium:
+      require('@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf'),
+    SpaceGrotesk_700Bold:
+      require('@expo-google-fonts/space-grotesk/700Bold/SpaceGrotesk_700Bold.ttf'),
+    SpaceMono_400Regular:
+      require('@expo-google-fonts/space-mono/400Regular/SpaceMono_400Regular.ttf'),
+    SpaceMono_700Bold:
+      require('@expo-google-fonts/space-mono/700Bold/SpaceMono_700Bold.ttf'),
+  }), null);
+  if (!faces) return false;
+  await Font.loadAsync(faces);
   return true;
 }
 
 export default function App() {
   const [booted, setBooted] = useState(false);
-  const [screen, setScreen] = useState('menu');
+  // Read once at mount: a first-time player lands on the intro, everyone else
+  // goes straight to the menu.
+  const [screen, setScreen] = useState(() => (prefs.get('onboarded', false) ? 'menu' : 'intro'));
   const [online, setOnline] = useState(true);
   const [invite, setInvite] = useState('');
   const matchRef = useRef(null);
@@ -171,6 +173,7 @@ export default function App() {
         );
         return true;
       }
+      if (screen === 'intro') return true;   // the intro has its own Skip
       if (screen !== 'menu') {
         go('menu');
         return true;
@@ -199,6 +202,8 @@ export default function App() {
     body = <View style={styles.body} />;
   } else if (screen === 'play' && matchRef.current) {
     body = <PlayScreen match={matchRef.current} onLeave={leaveMatch} />;
+  } else if (screen === 'intro') {
+    body = <IntroScreen onDone={() => setScreen('menu')} />;
   } else if (screen === 'daily') {
     body = <DailyScreen go={go} />;
   } else if (screen === 'rules') {

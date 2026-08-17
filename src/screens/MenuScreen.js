@@ -123,7 +123,8 @@ export function MenuScreen({ go, online }) {
       )}
 
       <View style={styles.footerRow}>
-        <Button label="How to play" variant="ghost" onPress={() => go('rules')} />
+        <Button label="How to play" variant="ghost" onPress={() => go('rules')} style={{ flex: 1 }} />
+        <Button label="Replay intro" variant="ghost" onPress={() => go('intro')} style={{ flex: 1 }} />
       </View>
 
       <View style={styles.toggles}>
