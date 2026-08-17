@@ -22,7 +22,6 @@
         "backgroundColor": "#0E0E11",
         "monochromeImage": "./assets/adaptive-icon.png"
       },
-      "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
       "intentFilters": [
         {
@@ -46,7 +45,8 @@
     "plugins": [
       "expo-font",
       "expo-audio",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "expo-asset"
     ],
     "extra": {
       "apiUrl": "https://nvp-kmab.vercel.app"
