@@ -56,7 +56,10 @@
       ]
     ],
     "extra": {
-      "apiUrl": "https://nvp-kmab.vercel.app"
+      "apiUrl": "https://nvp-kmab.vercel.app",
+      "eas": {
+        "projectId": "e5d928ee-14fb-46af-aba5-10cb8758ee14"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
